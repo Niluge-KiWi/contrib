@@ -19,6 +19,7 @@
 #       smartpath     - Specify path to smartctl program (Default: /usr/sbin/smartctl)
 #       smartargs     - Override '-a' argument passed to smartctl with '-A -i'+smartargs
 #       ignorestandby - Ignore the standby state of the drive and perform SMART query. Default: False
+#       rawvalue      - Read raw value instead of normalized value. Default: False
 #
 # Parameters can be specified on a per-drive basis, eg:
 #   [smart_hda]
@@ -67,6 +68,10 @@
 #                 - Print the last line of smartctl output to verbose
 #                   log to aid in understanding why smartctl exited with
 #                   a nonzero status.
+# v2.2 2016-11-12 - Add rawvalue env var: read raw instead of normalized
+#                   value. Useful when smartctl fails to return
+#                   normalized values. -- Thomas Riccardi
+#
 #
 # Copyright (c) 2004-2009 Nicolas Stransky.
 #
@@ -114,6 +119,7 @@ def read_values(hard_drive):
         if not os.path.exists(device):
             device='/dev/disk/by-id/'+hard_drive
         smart_output=os.popen(os.getenv('smartpath','/usr/sbin/smartctl')+' '+os.getenv('smartargs','-a')+(os.getenv('ignorestandby',False) and ' ' or ' -n standby ')+'-A -i '+device)
+        value_index=9 if os.getenv('rawvalue',False) else 3
         read_values=0
         lastline=None
         for l in smart_output :
@@ -127,7 +133,7 @@ def read_values(hard_drive):
                 model=string.join(model_list)
             if read_values==1 :
                 smart_attribute=string.split(l)
-                smart_values[string.replace(smart_attribute[1],'-','_')]={"value":smart_attribute[3],"threshold":smart_attribute[5]}
+                smart_values[string.replace(smart_attribute[1],'-','_')]={"value":smart_attribute[value_index],"threshold":smart_attribute[5]}
             elif l[:18]=="ID# ATTRIBUTE_NAME" :
                 # Start reading the Attributes block
                 read_values=1
@@ -463,6 +469,7 @@ So following minimal configuration in plugin-conf.d/munin-node is needed.
   smartpath     - Specify path to smartctl program (Default: /usr/sbin/smartctl)
   smartargs     - Override '-a' argument passed to smartctl with '-A -i'+smartargs
   ignorestandby - Ignore the standby state of the drive and perform SMART query. Default: False
+  rawvalue      - Read raw value instead of normalized value. Default: False
 
 Parameters can be specified on a per-drive basis, eg:
 
